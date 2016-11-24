@@ -1,0 +1,262 @@
+# http://stackoverflow.com/questions/5776660/export-from-sqlite-to-csv-using-shell-script
+# http://www.sqlitetutorial.net/sqlite-export-csv/
+Export to csv
+#!/bin/bash
+./bin/sqlite3 ./sys/xserve_sqlite.db <<!
+.headers on
+.mode csv
+.output out.csv
+select * from eS1100_sensor_results;
+!
+
+# http://stackoverflow.com/questions/14947916/import-csv-to-sqlite
+import from csv
+sqlite> create table foo(a, b);
+sqlite> .mode csv
+sqlite> .import test.csv foo
+
+Trigger
+
+I've decided that I'll use eithe MYSQL or SQLite3 to create a FIFO for
+the temperature data. I haven't figured out the table layout yet but I
+have found information of how to create a trigger to delete the older
+data. I also haven't figured out how much data to keep.
+
+```
+-- http://sqlite.1065341.n5.nabble.com/Sqlite-as-a-FIFO-buffer-td49644.html
+
+-- *****************************************************************************
+-- I don't know if this will work, but the basic idea is that after an insert
+-- a trigger runs that deletes all the entries with an m_key is greater than
+-- 4000 (I think)
+-- *****************************************************************************
+
+-- trigger: trg_EventLog
+-- table:   tbl_EventLog
+-- lenght:  4000
+create table tbl_EventLog (
+   m_key	integer primary key autoincrement,
+   m_eventCode	integer,
+   m_timestamp	integer
+);
+
+create trigger trg_EventLog after insert
+ on tbl_EventLog
+   begin delete
+   from tbl_EventLog
+   where m_key <= (SELECT max(m_key) FROM tbl_EventLog) - 4000;
+end;
+
+-- *[ Fini ]********************************************************************
+
+-- https://gist.github.com/elyezer/6450054
+-- Example table
+CREATE TABLE ring_buffer (id INTEGER PRIMARY KEY AUTOINCREMENT, data TEXT);
+
+-- Number 10 on where statement defines the ring buffer's size
+CREATE TRIGGER delete_tail AFTER INSERT ON ring_buffer
+BEGIN
+    DELETE FROM ring_buffer WHERE id%10=NEW.id%10 AND id!=NEW.id;
+END;
+```
+
+create table sensors (
+   cr_temp      real,
+   lr_sensor    real,
+   crawl_sensor real,
+   crawl_temp   real,
+   porch_temp   real,
+   garage_sensor real,
+   kttn         real,
+   hour         int,
+   id           integer primary key autoincrement
+);
+
+CREATE TRIGGER delete_tail AFTER INSERT ON sensors
+BEGIN
+    DELETE FROM sensors WHERE id%28=NEW.id%28 AND id!=NEW.id;
+END;
+
+-- ==============================================================================
+-- Okay, here's what I did
+njc@mozart:~/dev/Temperature2$ sqlite3
+SQLite version 3.8.7.1 2014-10-29 13:59:56
+Enter ".help" for usage hints.
+Connected to a transient in-memory database.
+Use ".open FILENAME" to reopen on a persistent database.
+sqlite> .open temperature
+sqlite> create table sensors (
+   ...>    cr_tempreal,
+   ...>    lr_sensorreal,
+   ...>    crawl_sensorreal,
+   ...>    crawl_tempreal,
+   ...>    porch_tempreal,
+   ...>    garage_sensor real,
+   ...>    kttnreal,
+   ...>    hourint,
+   ...>    idinteger primary key autoincrement
+   ...> );
+Error: AUTOINCREMENT is only allowed on an INTEGER PRIMARY KEY
+sqlite> 
+sqlite> CREATE TRIGGER delete_tail AFTER INSERT ON sensors
+   ...> BEGIN
+   ...>     DELETE FROM sensors WHERE id%28=NEW.id%28 AND id!=NEW.id;
+   ...> END;
+Error: no such table: main.sensors
+sqlite> create table sensors (
+   ...>    cr_temp
+   ...> ^C
+   ...> }
+   ...> ;
+Error: unrecognized token: "}"
+sqlite> create table sensors (
+   ...>    cr_temp      real,
+   ...>    lr_sensor    real,
+   ...>    crawl_sensor real,
+   ...>    crawl_temp   real,
+   ...>    porch_temp   real,
+   ...>    garage_sensor real,
+   ...>    kttn         real,
+   ...>    hour         int,
+   ...>    id           integer primary key autoincrement
+   ...> );
+sqlite> 
+sqlite> CREATE TRIGGER delete_tail AFTER INSERT ON sensors
+   ...> BEGIN
+   ...>     DELETE FROM sensors WHERE id%28=NEW.id%28 AND id!=NEW.id;
+   ...> END;
+sqlite> .mode csv
+sqlite> input input.csv
+   ...> ;
+Error: near "input": syntax error
+sqlite> .input input.csv
+Error: unknown command or invalid arguments:  "input". Enter ".help" for help
+sqlite> .import input.csv sensors
+input.csv:1: expected 9 columns but found 8 - filling the rest with NULL
+sqlite> select * from sensors;
+1.0,2.0,3.0,4.0,5.0,6.0,7.0,,1
+sqlite> ^Z
+[1]+  Stopped                 sqlite3
+njc@mozart:~/dev/Temperature2$ cat input.csv
+1, 2, 3, 4, 5, 6, 7, 0njc@mozart:~/dev/Temperature2$ fg
+sqlite3
+
+sqlite> update sensors set hour = 0 where (id = 1);
+sqlite> select * from sensors;
+1.0,2.0,3.0,4.0,5.0,6.0,7.0,0,1
+sqlite> .import input.csv sensors
+input.csv:1: INSERT failed: datatype mismatch
+input.csv:2: INSERT failed: datatype mismatch
+input.csv:3: INSERT failed: datatype mismatch
+input.csv:4: INSERT failed: datatype mismatch
+input.csv:5: INSERT failed: datatype mismatch
+input.csv:6: INSERT failed: datatype mismatch
+input.csv:7: INSERT failed: datatype mismatch
+input.csv:8: INSERT failed: datatype mismatch
+input.csv:9: INSERT failed: datatype mismatch
+input.csv:10: INSERT failed: datatype mismatch
+input.csv:11: INSERT failed: datatype mismatch
+input.csv:12: INSERT failed: datatype mismatch
+input.csv:13: INSERT failed: datatype mismatch
+input.csv:14: INSERT failed: datatype mismatch
+input.csv:15: INSERT failed: datatype mismatch
+input.csv:16: INSERT failed: datatype mismatch
+input.csv:17: INSERT failed: datatype mismatch
+input.csv:18: INSERT failed: datatype mismatch
+input.csv:19: INSERT failed: datatype mismatch
+input.csv:20: INSERT failed: datatype mismatch
+input.csv:21: INSERT failed: datatype mismatch
+input.csv:22: INSERT failed: datatype mismatch
+input.csv:23: INSERT failed: datatype mismatch
+input.csv:24: INSERT failed: datatype mismatch
+input.csv:25: INSERT failed: datatype mismatch
+input.csv:26: INSERT failed: datatype mismatch
+input.csv:27: INSERT failed: datatype mismatch
+input.csv:28: INSERT failed: datatype mismatch
+input.csv:29: INSERT failed: datatype mismatch
+sqlite> select * from sensors;
+1.0,2.0,3.0,4.0,5.0,6.0,7.0,0,1
+sqlite> .import input.csv sensors
+input.csv:1: expected 9 columns but found 8 - filling the rest with NULL
+input.csv:2: expected 9 columns but found 8 - filling the rest with NULL
+input.csv:3: expected 9 columns but found 8 - filling the rest with NULL
+input.csv:4: expected 9 columns but found 8 - filling the rest with NULL
+input.csv:5: expected 9 columns but found 8 - filling the rest with NULL
+input.csv:6: expected 9 columns but found 8 - filling the rest with NULL
+input.csv:7: expected 9 columns but found 8 - filling the rest with NULL
+input.csv:8: expected 9 columns but found 8 - filling the rest with NULL
+input.csv:9: expected 9 columns but found 8 - filling the rest with NULL
+input.csv:10: expected 9 columns but found 8 - filling the rest with NULL
+input.csv:11: expected 9 columns but found 8 - filling the rest with NULL
+input.csv:12: expected 9 columns but found 8 - filling the rest with NULL
+input.csv:13: expected 9 columns but found 8 - filling the rest with NULL
+input.csv:14: expected 9 columns but found 8 - filling the rest with NULL
+input.csv:15: expected 9 columns but found 8 - filling the rest with NULL
+input.csv:16: expected 9 columns but found 8 - filling the rest with NULL
+input.csv:17: expected 9 columns but found 8 - filling the rest with NULL
+input.csv:18: expected 9 columns but found 8 - filling the rest with NULL
+input.csv:19: expected 9 columns but found 8 - filling the rest with NULL
+input.csv:20: expected 9 columns but found 8 - filling the rest with NULL
+input.csv:21: expected 9 columns but found 8 - filling the rest with NULL
+input.csv:22: expected 9 columns but found 8 - filling the rest with NULL
+input.csv:23: expected 9 columns but found 8 - filling the rest with NULL
+input.csv:24: expected 9 columns but found 8 - filling the rest with NULL
+input.csv:25: expected 9 columns but found 8 - filling the rest with NULL
+input.csv:26: expected 9 columns but found 8 - filling the rest with NULL
+input.csv:27: expected 9 columns but found 8 - filling the rest with NULL
+input.csv:28: expected 9 columns but found 8 - filling the rest with NULL
+input.csv:29: expected 9 columns but found 8 - filling the rest with NULL
+sqlite> select * from sensors;
+1.0,2.0,3.3,4.0,5.0,6.0,7.0,,3
+1.0,2.0,3.0,4.4,5.0,6.0,7.0,,4
+1.0,2.0,3.0,4.0,5.5,6.0,7.0,,5
+1.0,2.0,3.0,4.0,5.0,6.6,7.0,,6
+1.0,2.0,3.0,4.0,5.0,6.0,7.7,,7
+1.1,2.0,3.0,4.0,5.0,6.0,7.0,,8
+1.0,2.0,3.0,4.0,5.0,6.0,7.0,,9
+1.0,2.0,3.0,4.0,5.0,6.0,7.0,,10
+1.0,2.0,3.0,4.0,5.0,6.0,7.0,,11
+1.0,2.0,3.0,4.0,5.0,6.0,7.0,,12
+1.0,2.0,3.0,4.0,5.0,6.0,7.0,,13
+1.0,2.0,3.0,4.0,5.0,6.0,7.0,,14
+1.0,2.0,3.0,4.0,5.0,6.0,7.0,,15
+1.0,2.0,3.0,4.0,5.0,6.0,7.0,,16
+1.0,2.0,3.0,4.0,5.0,6.0,7.0,,17
+1.0,2.0,3.0,4.0,5.0,6.0,7.0,,18
+1.0,2.0,3.0,4.0,5.0,6.0,7.0,,19
+1.0,2.0,3.0,4.0,5.0,6.0,7.0,,20
+1.0,2.0,3.0,4.0,5.0,6.0,7.0,,21
+1.0,2.0,3.0,4.0,5.0,6.0,7.0,,22
+1.0,2.0,3.0,4.0,5.0,6.0,7.0,,23
+1.0,2.0,3.0,4.0,5.0,6.0,7.0,,24
+1.0,2.0,3.0,4.0,5.0,6.0,7.0,,25
+1.0,2.0,3.0,4.0,5.0,6.0,7.0,,26
+1.0,2.0,3.0,4.0,5.0,6.0,7.0,,27
+1.0,2.0,3.0,4.0,5.0,6.0,7.0,,28
+1.0,2.0,3.0,4.0,5.0,6.0,7.0,,29
+1.0,2.0,3.0,4.0,5.0,6.0,7.0,,30
+sqlite> 
+-- ==============================================================================
+
+.open temperature.db
+create table sensors (
+   cr_temp      real,
+   lr_sensor    real,
+   crawl_sensor real,
+   crawl_temp   real,
+   porch_temp   real,
+   garage_sensor real,
+   kttn         real,
+   hour         int,
+   id           integer primary key autoincrement
+);
+
+CREATE TRIGGER delete_tail AFTER INSERT ON sensors
+BEGIN
+    DELETE FROM sensors WHERE id%28=NEW.id%28 AND id!=NEW.id;
+END;
+.mode csv
+.import input.csv sensors
+.headers on
+select * from sensors
+.quit

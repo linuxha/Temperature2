@@ -1,0 +1,7 @@
+# MQTT topics on mozart.uucp
+smartthings/Computer Room Temperature/temperature
+smartthings/LR Multipurpose Sensor A/temperature
+smartthings/Crawl Space Contact Sensor/temperature
+smartthings/Crawl Space Temp-Humidity Sensor/temperature
+smartthings/Front Porch Temp-Humidity Sensor/temperature
+smartthings/Garage Side Door iContact Sensor/temperature
